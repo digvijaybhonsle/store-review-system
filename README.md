@@ -63,7 +63,7 @@ A full-stack web application for managing stores, users, and reviews. Users can 
 
 2. Directory
     ```
-    cd Backend-Project
+    cd Backend
     ```
 
 3. Install Dependencies:
