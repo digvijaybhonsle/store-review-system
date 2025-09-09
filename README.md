@@ -63,7 +63,7 @@ A full-stack web application for managing stores, users, and reviews. Users can 
 
 2. Directory
     ```
-    cd Backend
+    cd Frontend
     ```
 
 3. Install Dependencies:
@@ -80,7 +80,7 @@ A full-stack web application for managing stores, users, and reviews. Users can 
 
 1. Directory
     ```bash
-    cd Frontend
+    cd Backend
     ```
     
 2. Install Dependencies:
