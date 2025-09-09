@@ -3,13 +3,16 @@ import Navbar from "../components/Navbar";
 import { getStores, createStore } from "../../src/services/storeService";
 import { getAllRatings } from "../../src/services/ratingService";
 import { getUsers, createUser } from "../../src/services/userServices";
+import { toast } from "react-toastify"; // ✅ use toast for notifications
+import "react-toastify/dist/ReactToastify.css";
 
 const AdminDashboard = () => {
   const [stores, setStores] = useState([]);
   const [ratings, setRatings] = useState([]);
   const [users, setUsers] = useState([]);
 
-  // State for showing forms and form inputs
+  // UI States
+  const [loading, setLoading] = useState(false);
   const [showUserForm, setShowUserForm] = useState(false);
   const [showStoreForm, setShowStoreForm] = useState(false);
 
@@ -25,7 +28,6 @@ const AdminDashboard = () => {
     name: "",
     email: "",
     address: "",
-    owner_id: "",
   });
 
   const [filterName, setFilterName] = useState("");
@@ -43,17 +45,20 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const storeData = await getStores();
+        const [storeData, ratingData, userData] = await Promise.all([
+          getStores(),
+          getAllRatings(),
+          getUsers(),
+        ]);
         setStores(storeData);
-
-        const ratingData = await getAllRatings();
         setRatings(ratingData);
-
-        const userData = await getUsers();
         setUsers(userData);
       } catch (err) {
-        console.error(err);
+        toast.error("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -68,40 +73,54 @@ const AdminDashboard = () => {
   const maxRating =
     ratings.length > 0 ? Math.max(...ratings.map((r) => r.rating)) : 0;
 
-  // Handlers for creating user and store
+  // ✅ Validation helpers
+  const validateEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const validatePassword = (password) =>
+    password.length >= 6;
+
   const handleCreateUser = async () => {
+    if (!newUser.name || !validateEmail(newUser.email)) {
+      toast.warning("Enter valid name and email");
+      return;
+    }
+    if (!validatePassword(newUser.password)) {
+      toast.warning("Password must be at least 6 characters");
+      return;
+    }
     try {
+      setLoading(true);
       await createUser(newUser);
       const updatedUsers = await getUsers();
       setUsers(updatedUsers);
-      alert("User created Successfully!!");
+      toast.success("User created successfully!");
       setShowUserForm(false);
-      setNewUser({
-        name: "",
-        email: "",
-        password: "",
-        address: "",
-        role: "user",
-      });
+      setNewUser({ name: "", email: "", password: "", address: "", role: "user" });
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || "Failed to create user");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreateStore = async () => {
+    if (!newStore.name || !validateEmail(newStore.email)) {
+      toast.warning("Enter valid store name and email");
+      return;
+    }
     try {
+      setLoading(true);
       await createStore(newStore);
       const updatedStores = await getStores();
       setStores(updatedStores);
+      toast.success("Store created successfully!");
       setShowStoreForm(false);
-      alert("Strore Created Successfully!!");
-      setNewStore({
-        name: "",
-        email: "",
-        address: "",
-      });
+      setNewStore({ name: "", email: "", address: "" });
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || "Failed to create store");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -111,44 +130,37 @@ const AdminDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 lg:ml-10 pt-24">
         <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
 
-        {/* Pento Grid */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {/* All Stores */}
-          <div className="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
-            <h3 className="text-lg font-semibold mb-2">All Stores</h3>
-            <p className="text-2xl font-bold">{stores.length}</p>
-          </div>
+          {[
+            { label: "All Stores", value: stores.length },
+            { label: "All Ratings", value: ratings.length },
+            { label: "Average Rating", value: `${avgRating} ⭐` },
+            { label: "Max Rating", value: `${maxRating} ⭐` },
+          ].map((stat, i) => (
+            <div
+              key={i}
+              className="p-4 bg-white rounded-lg shadow hover:shadow-lg transition"
+            >
+              <h3 className="text-lg font-semibold mb-2">{stat.label}</h3>
+              <p className="text-2xl font-bold">{stat.value}</p>
+            </div>
+          ))}
+        </div>
 
-          {/* All Ratings */}
-          <div className="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
-            <h3 className="text-lg font-semibold mb-2">All Ratings</h3>
-            <p className="text-2xl font-bold">{ratings.length}</p>
-          </div>
-
-          {/* Average Rating */}
-          <div className="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
-            <h3 className="text-lg font-semibold mb-2">Average Rating</h3>
-            <p className="text-2xl font-bold">{avgRating} ⭐</p>
-          </div>
-
-          {/* Max Rating */}
-          <div className="p-4 bg-white rounded-lg shadow hover:shadow-lg transition">
-            <h3 className="text-lg font-semibold mb-2">Max Rating</h3>
-            <p className="text-2xl font-bold">{maxRating} ⭐</p>
-          </div>
-
+        {/* Add User & Store */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           {/* Add User */}
-          <div className="p-4 bg-white rounded-lg shadow hover:shadow-lg transition flex flex-col justify-between col-span-2">
+          <div className="p-4 bg-white rounded-lg shadow flex flex-col">
             <h3 className="text-lg font-semibold mb-2">Add User</h3>
             <button
-              className="mt-auto px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              onClick={() => setShowUserForm(true)} // Only controls user form visibility
+              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={() => setShowUserForm((prev) => !prev)}
             >
-              Add
+              {showUserForm ? "Close Form" : "Add"}
             </button>
-            {showUserForm && ( // Conditional rendering only for user form
+            {showUserForm && (
               <div className="mt-4 space-y-2">
-                {/* user form inputs */}
                 <input
                   placeholder="Name"
                   className="block w-full border rounded px-2 py-1"
@@ -190,38 +202,31 @@ const AdminDashboard = () => {
                   }
                 >
                   <option value="user">User</option>
-                  <option value="normal">Owner</option>
+                  <option value="store_owner">Store Owner</option>
+                  <option value="admin">Admin</option>
                 </select>
-                <div className="flex gap-2">
-                  <button
-                    className="flex-1 px-3 py-1 bg-blue-600 text-white rounded"
-                    onClick={handleCreateUser} // only creates user
-                  >
-                    Create
-                  </button>
-                  <button
-                    className="flex-1 px-3 py-1 bg-gray-400 text-white rounded"
-                    onClick={() => setShowUserForm(false)} // hides user form
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <button
+                  disabled={loading}
+                  className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
+                  onClick={handleCreateUser}
+                >
+                  {loading ? "Creating..." : "Create User"}
+                </button>
               </div>
             )}
           </div>
 
           {/* Add Store */}
-          <div className="p-4 bg-white rounded-lg shadow hover:shadow-lg transition flex flex-col justify-between col-span-2">
+          <div className="p-4 bg-white rounded-lg shadow flex flex-col">
             <h3 className="text-lg font-semibold mb-2">Add Store</h3>
             <button
-              className="mt-auto px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              onClick={() => setShowStoreForm(true)} // only controls store form visibility
+              className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              onClick={() => setShowStoreForm((prev) => !prev)}
             >
-              Add
+              {showStoreForm ? "Close Form" : "Add"}
             </button>
-            {showStoreForm && ( // Conditional rendering only for store form
+            {showStoreForm && (
               <div className="mt-4 space-y-2">
-                {/* store form inputs */}
                 <input
                   placeholder="Store Name"
                   className="block w-full border rounded px-2 py-1"
@@ -246,31 +251,23 @@ const AdminDashboard = () => {
                     setNewStore({ ...newStore, address: e.target.value })
                   }
                 />
-                <div className="flex gap-2">
-                  <button
-                    className="flex-1 px-3 py-1 bg-green-600 text-white rounded"
-                    onClick={handleCreateStore} // only creates store
-                  >
-                    Create
-                  </button>
-                  <button
-                    className="flex-1 px-3 py-1 bg-gray-400 text-white rounded"
-                    onClick={() => setShowStoreForm(false)} // hides store form
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <button
+                  disabled={loading}
+                  className="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-300"
+                  onClick={handleCreateStore}
+                >
+                  {loading ? "Creating..." : "Create Store"}
+                </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* All Users Listing Section */}
-        <div className="mt-10 bg-white shadow rounded-lg p-6">
+        {/* Users List */}
+        <div className="my-10 bg-white shadow rounded-lg p-6">
           <h3 className="text-xl font-semibold mb-6 border-b pb-2 text-gray-800">
             All Users
           </h3>
-
           {/* Filters */}
           <div className="flex flex-wrap gap-4 mb-6">
             <input
@@ -278,21 +275,20 @@ const AdminDashboard = () => {
               placeholder="Filter by name"
               value={filterName}
               onChange={(e) => setFilterName(e.target.value)}
-              className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
             />
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Roles</option>
               <option value="user">User</option>
               <option value="admin">Admin</option>
-              <option value="store_owner">Store_owner</option>
+              <option value="store_owner">Store Owner</option>
             </select>
           </div>
 
-          {/* Users List */}
           <ul className="divide-y divide-gray-200">
             {filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
@@ -305,7 +301,7 @@ const AdminDashboard = () => {
                     <p className="text-sm text-gray-500">{user.email}</p>
                   </div>
                   <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full capitalize">
-                    {user.role.toUpperCase()}
+                    {user.role}
                   </span>
                 </li>
               ))

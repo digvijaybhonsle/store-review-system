@@ -1,22 +1,25 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import { getAllRatings } from "../../src/services/ratingService";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const StoresPage = () => {
   const [ratings, setRatings] = useState([]);
   const [error, setError] = useState("");
   const [searchName, setSearchName] = useState("");
   const [filterName, setFilterName] = useState("");
-  const [filterAddress, setFilterAddress] = useState("");
 
   useEffect(() => {
     const fetchRatings = async () => {
       try {
         const data = await getAllRatings();
         setRatings(data);
+        toast.success("Ratings fetched successfully!");
       } catch (err) {
         console.error(err);
         setError("Failed to fetch ratings.");
+        toast.error("Failed to fetch ratings.");
       }
     };
 
@@ -36,10 +39,9 @@ const StoresPage = () => {
     return acc;
   }, {});
 
-  // Convert to array
   const stores = Object.values(ratingsByStore);
 
-  // Filter stores by searchName and filterName (average rating)
+  // Apply filters
   const filteredStores = stores.filter((storeGroup) => {
     const avgRating =
       storeGroup.ratings.reduce((sum, r) => sum + r.rating, 0) /
@@ -81,7 +83,6 @@ const StoresPage = () => {
               </option>
             ))}
           </select>
-          {/* If you have addresses from somewhere, filter by address can be added */}
         </div>
 
         {error && <p className="text-red-500 mb-4">{error}</p>}

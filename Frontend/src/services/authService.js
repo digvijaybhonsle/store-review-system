@@ -67,13 +67,10 @@ export const logout = () => {
 };
 
 export const updatePassword = async ({ email, currentPassword, newPassword }) => {
-  const token = localStorage.getItem("token");
-  if (!token) throw new Error("User not authenticated");
-
   const res = await fetch(`${API_URL}/update-password`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ email, currentPassword, newPassword }), // include email here
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, currentPassword, newPassword }),
   });
 
   if (!res.ok) {
@@ -87,3 +84,4 @@ export const updatePassword = async ({ email, currentPassword, newPassword }) =>
 
   return res.json();
 };
+
